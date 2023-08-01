@@ -18,7 +18,7 @@ d_d1 = d_sd1 - d_s1  # Patient to detector
 d_s2 = 815 #   900
 d_sd2 =   1118   #
 d_d2 = d_sd2 - d_s2
-d_p = 0.154 # 0.154#        0.390625  # Pixel spacing
+d_p = 0.29296875 # 0.154#        0.390625  # Pixel spacing
 px = 1024  #1024  # Pixels (512)
 
 def rotation(alpha, beta):
@@ -126,8 +126,8 @@ for point in range(len(virtualVesselx)):
     z_p = D[2] + (parameters[0] / np.linalg.norm(r2)) * r2[2] + (parameters[1] / np.linalg.norm(r3)) * r3[2]
     v_p = np.array([x_p, y_p, z_p])
     vp_list.append(v_p)
-    twoDpoint = functionsImport_Jul2023.project3Dto2D(P1, SS_1, Q1, v_p)
-    angioPoints.append(twoDpoint[1])
+    twoDpoint = functionsImport_Jul2023.project3Dto2D(P1, SS_1, Q1, v_p,px,d_p)
+    angioPoints.append(twoDpoint[0])
     # note: second projection starts here:
     parameters2 = projection_2(virtualVesselx[point], virtualVessely[point], virtualVesselz[point])
     x_p2 = D2[0] + (parameters2[0] / np.linalg.norm(r2_2)) * r2_2[0] + (parameters2[1] / np.linalg.norm(r3_2)) * r3_2[0]
@@ -135,8 +135,8 @@ for point in range(len(virtualVesselx)):
     z_p2 = D2[2] + (parameters2[0] / np.linalg.norm(r2_2)) * r2_2[2] + (parameters2[1] / np.linalg.norm(r3_2)) * r3_2[2]
     v_p2 = np.array([x_p2, y_p2, z_p2])
     vp_list2.append(v_p2)
-    twoDpoint_2 = functionsImport_Jul2023.project3Dto2D(P2, SS_2, Q2, v_p2)
-    angioPoints2.append(twoDpoint_2[1])
+    twoDpoint_2 = functionsImport_Jul2023.project3Dto2D(P2, SS_2, Q2, v_p2,px,d_p)
+    angioPoints2.append(twoDpoint_2[0])
 
 ### The part below transfers the angiogram points, into x,y,s matrix, with s a parameter
 # that runs from 0 to the length of the curve
@@ -274,8 +274,8 @@ if plotSwitch:
 
 
     fig2 = plt.figure("1st view, red")
-    plt.xlim([0, 158])
-    plt.ylim([0, 158])
+    plt.xlim([-px/2, px/2])
+    plt.ylim([-px/2, px/2])
     plt.plot(x_coord_fit_proj1, y_coord_fit_proj1, label='Legendre fit_proj', c='r',alpha=0.9)
 
     for i in range(len(angioPoints)):
@@ -284,8 +284,8 @@ if plotSwitch:
     fig3 = plt.figure("2d view, yelow")
 
 
-    plt.xlim([0, 158])
-    plt.ylim([0, 158])
+    plt.xlim([-px/2, px/2])
+    plt.ylim([-px/2, px/2])
 
 
     for i in range(len(angioPoints2)):
