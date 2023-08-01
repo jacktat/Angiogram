@@ -37,7 +37,7 @@ def map_range(value, from_range, to_range):
     new_value = (value - from_range[0]) * ratio + to_range[0]
     return new_value
 
-def project3Dto2D(P,S,Q,point):
+def project3Dto2D(P,S,Q,point,pix,pix_spacing):
     """
     :param P: corner P
     :param S: corner S
@@ -53,11 +53,10 @@ def project3Dto2D(P,S,Q,point):
     #D2 = np.linalg.norm(np.cross(PA, PQ)) / np.linalg.norm(PQ) # distance between point and PQ,
     # or yaxis = the xaxis in 2D!
     D2 = np.linalg.norm(np.cross(PA, PQ)) / np.linalg.norm(PQ)
-    D22= 158-D2
-    mapped_coord = np.array((D22, D1)) #in [mm] ; this function assumse bottom left is (0,0)
+    mapped_coord = np.array((D2, D1)) #in [mm] ; this function assumse bottom left is (0,0)
 
-    scaled_x = map_range(mapped_coord[0],[-78.696, 78], [-256,256]) *-1 #scaled_x = map_range(mapped_coord[0],[0, 115], [-512,512]) *-1  #(flipping of X coordinates.) ### scaled_x = map_range(mapped_coord[0],[0, 158], [-512,512]) *-1
-    scaled_y = map_range(mapped_coord[1], [-78, 78], [-256, 256]) # #scaled_y = map_range(mapped_coord[1], [0, 115], [-512, 512]) #scaled_y = map_range(mapped_coord[1], [0, 200], [-512, 512])
+    scaled_x = map_range(mapped_coord[0],[pix*pix_spacing, 0], [-pix/2,pix/2]) #scaled_x = map_range(mapped_coord[0],[0, 115], [-512,512]) *-1  #(flipping of X coordinates.) ### scaled_x = map_range(mapped_coord[0],[0, 158], [-512,512]) *-1
+    scaled_y = map_range(mapped_coord[1], [0, pix*pix_spacing], [-pix/2, pix/2]) # #scaled_y = map_range(mapped_coord[1], [0, 115], [-512, 512]) #scaled_y = map_range(mapped_coord[1], [0, 200], [-512, 512])
     ang_mapped_coord=np.array((scaled_x, scaled_y)) #scaled to -256,256 and flipped x axis
 
     return ang_mapped_coord, mapped_coord
@@ -378,3 +377,49 @@ def select_shortest_path(sublists):
             final_points.append(selected_point)
 
     return final_points
+
+
+def onclick(event):
+    # Print the x, y coordinates of the clicked point
+    print(f"Clicked point: x={event.xdata}, y={event.ydata}")
+
+    # Perform your calculations based on the clicked point
+    # ...
+
+def on_button_press(event):
+    # Check if the left mouse button is pressed
+    if event.button == 1:
+        # Store the starting coordinates of the line
+        global start_x, start_y
+        start_x = event.xdata
+        start_y = event.ydata
+
+def on_button_release_1(event):
+    # Check if the left mouse button is released
+    if event.button == 1:
+        # Get the ending coordinates of the line
+        end_x = event.xdata
+        end_y = event.ydata
+
+        # Plot the line
+        ax2.plot([start_x, end_x], [start_y, end_y], 'b-')
+        # Calculate the length of the line
+        length = math.sqrt((end_x - start_x) ** 2 + (end_y - start_y) ** 2)
+        lengths_view1.append(length)
+        print(f"Length: {length:.2f}")
+        plt.draw()
+
+def on_button_release_2(event):
+    # Check if the left mouse button is released
+    if event.button == 1:
+        # Get the ending coordinates of the line
+        end_x = event.xdata
+        end_y = event.ydata
+
+        # Plot the line
+        ax3.plot([start_x, end_x], [start_y, end_y], 'b-')
+        # Calculate the length of the line
+        length = math.sqrt((end_x - start_x) ** 2 + (end_y - start_y) ** 2)
+        lengths_view2.append(length)
+        print(f"Length: {length:.2f}")
+        plt.draw()
