@@ -69,7 +69,7 @@ def project2Dto3D_JT(rot_mat,d_d,d_p,point2D):
     # transfer the 2D reparametrised coordiantes to 3D by adding z_value at the detector plane , then rotate with matmul(M)
     #point2D_copy[0] = point2D_copy[0]
     #point2D_copy[1] = point2D_copy[1]
-    point = np.array([point2D_copy[0]*d_p, point2D_copy[1]*d_p, d_d])
+    point = np.array([-1*point2D_copy[0]*d_p, point2D_copy[1]*d_p, d_d])
     pointRot = np.matmul(rot_mat, point)
 
     return pointRot
