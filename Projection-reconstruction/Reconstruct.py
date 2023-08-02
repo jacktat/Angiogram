@@ -7,23 +7,22 @@ import time
 start = time.time()
 matplotlib.use('TkAgg')
 from scipy.optimize import lsq_linear
-from functionsImport import *
+from functionsImport_Jul2023 import *
 import virtualAngiogram_Jul2023
 
-
-def reconstruct3D(Point,alpha1,beta1,alpha2,beta2,d_s,d_sd,d_p,px):
+def reconstruct3D(Point,d_s,d_sd,d_p,px):
     epipolarpoint_local_2D_func = []
-    betaF =   beta1
-    alphaF =  alpha1
-    beta2F =  beta2
-    alpha2F = alpha2
+    betaF =   virtualAngiogram_Jul2023.beta
+    alphaF =  virtualAngiogram_Jul2023.alpha
+    beta2F =  virtualAngiogram_Jul2023.beta2
+    alpha2F = virtualAngiogram_Jul2023.alpha2
     d_sF = d_s
     d_sdF = d_sd
     d_dF = d_sdF - d_sF  # Patient to detector
     d_pF = d_p  # 0.390625  # Pixel spacing
     pxF = px  # 512  # Pixels
-    MF = rotation(alphaF, betaF)
-    M2F = rotation(alpha2F, beta2F)
+    MF = virtualAngiogram_Jul2023.rotation(alphaF, betaF)
+    M2F = virtualAngiogram_Jul2023.rotation(alpha2F, beta2F)
     S_oF = np.array([0, 0, -d_sF])
     D_oF = np.array([0, 0, d_dF])
     P_oF = np.array([-pxF / 2 * d_pF, -pxF / 2 * d_pF, d_dF])  # bottomleft corner of detector
@@ -193,25 +192,26 @@ r2_2 = np.matmul(M2, r2_2)
 r3_2 = np.array([1, 0, 0])
 r3_2 = np.matmul(M2, r3_2)
 
+legVx_2D =  virtualAngiogram_Jul2023.x_coord_fit_proj1
+legVy_2D =  virtualAngiogram_Jul2023.y_coord_fit_proj1
+legVx2_2D = virtualAngiogram_Jul2023.x_coord_fit_proj2
+legVy2_2D = virtualAngiogram_Jul2023.y_coord_fit_proj2
+
 legVx =  virtualAngiogram_Jul2023.x_coord_fit_proj1
 legVy =  virtualAngiogram_Jul2023.y_coord_fit_proj1
 legVx2 = virtualAngiogram_Jul2023.x_coord_fit_proj2
 legVy2 = virtualAngiogram_Jul2023.y_coord_fit_proj2
 
-# transfer the 2D reparametrised coordiantes to 3D by adding z_value at the detector plane , then rotate with matmul(M)
-legVx *= -d_p  #was niet *-1
-legVy *= d_p
+legVx = [value * -d_p for value in legVx]
+legVy = [value * d_p for value in legVy]
 legVz = d_d1 * np.ones_like(legVx)
 centerline1 = []
-legVx_2D = legVx / -d_p
-legVy_2D = legVy / d_p
-
-legVx2 *= -d_p
-legVy2 *= d_p
+legVx2 = [value * -d_p for value in legVx2]
+legVy2 = [value * d_p for value in legVy2]
 legVz2 = d_d2 * np.ones_like(legVx2)
 centerline2 = []
-legVx2_2D = legVx2 / -d_p
-legVy2_2D = legVy2 / d_p
+
+
 
 for i in range(len(legVx)):
     point = np.array([legVx[i], legVy[i], legVz[i]])
@@ -223,11 +223,16 @@ for i in range(len(legVx2)):
     pointRot2 = np.matmul(M2, point2)
     centerline2.append(pointRot2)
 
+
+
 # ____________ Epipolar planes and lines __________ #
 reconstructed_points = []
 total_reconstructed_points = []
+
+
 r5 = centerline1[0] - S2
 r4 = S2 - S
+
 AA = np.array([(r2_2[0] / np.linalg.norm(r2_2), r3_2[0] / np.linalg.norm(r3_2), -r4[0] / np.linalg.norm(r4),
                 -r5[0] / np.linalg.norm(r5)),
                (r2_2[1] / np.linalg.norm(r2_2), r3_2[1] / np.linalg.norm(r3_2), -r4[1] / np.linalg.norm(r4),
@@ -248,6 +253,8 @@ lam3 = res.x[1]
 x_epipolar_point = D2[0] + (lam2 / np.linalg.norm(r2_2)) * r2_2[0] + (lam3 / np.linalg.norm(r3_2)) * r3_2[0]
 y_epipolar_point = D2[1] + (lam2 / np.linalg.norm(r2_2)) * r2_2[1] + (lam3 / np.linalg.norm(r3_2)) * r3_2[1]
 z_epipolar_point = D2[2] + (lam2 / np.linalg.norm(r2_2)) * r2_2[2] + (lam3 / np.linalg.norm(r3_2)) * r3_2[2]
+
+
 # calculation of lamda range which limits epipolar line to detector
 L1 = calculate_lambda_JT([x_epipolar_point, y_epipolar_point, z_epipolar_point], r_epi, P2, SS_2)
 L2 = calculate_lambda_JT([x_epipolar_point, y_epipolar_point, z_epipolar_point], r_epi, P2, Q2)
@@ -271,18 +278,72 @@ for k in range(len(a)):
     x_epipolarline[k] = x_value
     y_epipolarline[k] = y_value
     z_epipolarline[k] = z_value
-    epipolarpoint_local_2D.append(project3Dto2D(P2, SS_2, Q2, [x_value, y_value, z_value])[0])
+    epipolarpoint_local_2D.append(project3Dto2D(P2, SS_2, Q2, [x_value, y_value, z_value],px,d_p)[0])
 
-# for p in range(1):
-#     punt3D = reconstruct3D(np.array((centerline1[p][0],centerline1[p][1],centerline1[p][2])),alpha,beta,alpha2,beta2,d_s, d_sd, d_p, px)
-#     print(f"voor punt {p}. Punt 3D -> {punt3D}")
-#     reconstructed_points.append(punt3D)
+dirV_epi_2D = epipolarpoint_local_2D[0]-epipolarpoint_local_2D[1]                               #note first transfer epipolar line in vector representation to 2D
+dirV_g = np.dot(dirV_epi_2D, np.array(((0, -1), (1, 0))))                                   #note (g is perpendicular line on epi) we will define directionalVector perpendicular to dirVector from epiline
+
+prev_delta_y = 0
+sign_change_location = []
+
+for point in range(len(legVx2_2D)):                                                                  #note: this loop outputs coordianates of intersection under variable "sign_change_location"
+    intersection_d_epi = intersection_two_lines_2D(np.array([legVx2_2D[point], legVy2_2D[point]]), dirV_g, epipolarpoint_local_2D[0], dirV_epi_2D)
+    delta_y = legVy2_2D[point]-intersection_d_epi[1]
+    sign_delta_y = np.sign(delta_y)
+    if point != 0 and sign_delta_y != prev_delta_y:
+        sign_change_location.append(np.array( ([legVx2_2D[point], legVy2_2D[point]]) ) )
+        sign_change_location_total.append(np.array(([legVx2_2D[point], legVy2_2D[point]])))
+    prev_delta_y = sign_delta_y
+#print(len(sign_change_location))
 
 
-""" 
+#notitie: vanaf hier heb ik op detector2 in 2D, de snijpunten van de curve met de epipolar line bepaald.
+#notitie: deze punten zijn opgeslagen in sign_change_location.
+
+if len(sign_change_location) == 1:
+    subList = []
+    epi_curve_intersect3D = project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[0]) #todo gaan er nu nog ff vanuit dat die maar 1x intersect.
+    intersection = xRayIntersection(S, centerline1[0], S2,    #intersection = xRayIntersection(S, [curveValsX[iPoint], curveValsY[iPoint], curveValsZ[iPoint]], S2,
+                                    epi_curve_intersect3D,
+                                    domain=[(-300, 300), (-400, 300),
+                                            (-800, 200)])  # domain=[(-30, 30), (-40, 30), (-80, -20)]
+    intersection = np.around(intersection.astype(np.double), 4)
+    subList.append(intersection)
+    #print(iPoint, intersection)
+    NoIntersectionsPerPoint[0] = 1
+    reconstructed_points.append(subList)
+    total_reconstructed_points.append(intersection)
+
+elif len(sign_change_location) > 1:
+    #print("len sign change=",len(sign_change_location))
+    NoIntersectionsPerPoint[0] = len(sign_change_location)
+    subList = []
+    for i in range(len(sign_change_location)):
+        epi_curve_intersect3D = project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[i])
+        intersection = xRayIntersection(S, centerline1[0], S2,
+                                        epi_curve_intersect3D,
+                                        domain=[(-300, 300), (-400, 300),
+                                                (-800, 200)])  # domain=[(-30, 30), (-40, 30), (-80, -20)]
+        intersection = np.around(intersection.astype(np.double), 4)
+        subList.append(intersection)
+        total_reconstructed_points.append(intersection)
+        #print(iPoint,intersection)
+    reconstructed_points.append(subList)
+
+
+
+#for p in range(10):
+#    punt3D = reconstruct3D(np.array((centerline1[p][0],centerline1[p][1],centerline1[p][2])),alpha,beta,alpha2,beta2,d_s, d_sd, d_p, px)
+#    print(f"voor punt {p}. Punt 3D -> {punt3D}")
+#    reconstructed_points.append(punt3D)
+
+"""
+r4 = S2 - S
+NoIntersectionsPerPoint = np.zeros(len(centerline1))
+sign_change_location_total = []
 for iPoint in range(len(centerline1)):
     r5 = centerline1[iPoint] - S2
-
+    r4 = S2-S
     AA = np.array([(r2_2[0] / np.linalg.norm(r2_2), r3_2[0] / np.linalg.norm(r3_2), -r4[0] / np.linalg.norm(r4),
                     -r5[0] / np.linalg.norm(r5)),
                    (r2_2[1] / np.linalg.norm(r2_2), r3_2[1] / np.linalg.norm(r3_2), -r4[1] / np.linalg.norm(r4),
@@ -327,7 +388,7 @@ for iPoint in range(len(centerline1)):
         y_epipolarline[k] = y_value
         z_epipolarline[k] = z_value
 
-        epipolarpoint_local_2D.append(project3Dto2D(P2, SS_2, Q2,[x_value, y_value, z_value])[0])
+        epipolarpoint_local_2D.append(project3Dto2D(P2, SS_2, Q2,[x_value, y_value, z_value],px,d_p)[0])
 
 
     dirV_epi_2D = epipolarpoint_local_2D[0]-epipolarpoint_local_2D[1]                               #note first transfer epipolar line in vector representation to 2D
@@ -347,14 +408,12 @@ for iPoint in range(len(centerline1)):
     #print(len(sign_change_location))
 
 
-
-
 #notitie: vanaf hier heb ik op detector2 in 2D, de snijpunten van de curve met de epipolar line bepaald.
 #notitie: deze punten zijn opgeslagen in sign_change_location.
 
     if len(sign_change_location) == 1:
         subList = []
-        epi_curve_intersect3D = project2Dto3D_JT(M2, d_d, d_p, sign_change_location[0]) #todo gaan er nu nog ff vanuit dat die maar 1x intersect.
+        epi_curve_intersect3D = project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[0]) #todo gaan er nu nog ff vanuit dat die maar 1x intersect.
         intersection = xRayIntersection(S, centerline1[iPoint], S2,    #intersection = xRayIntersection(S, [curveValsX[iPoint], curveValsY[iPoint], curveValsZ[iPoint]], S2,
                                         epi_curve_intersect3D,
                                         domain=[(-300, 300), (-400, 300),
@@ -371,7 +430,7 @@ for iPoint in range(len(centerline1)):
         NoIntersectionsPerPoint[iPoint] = len(sign_change_location)
         subList = []
         for i in range(len(sign_change_location)):
-            epi_curve_intersect3D = project2Dto3D_JT(M2, d_d, d_p, sign_change_location[i])
+            epi_curve_intersect3D = project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[i])
             intersection = xRayIntersection(S, centerline1[iPoint], S2,
                                             epi_curve_intersect3D,
                                             domain=[(-300, 300), (-400, 300),
@@ -381,8 +440,8 @@ for iPoint in range(len(centerline1)):
             total_reconstructed_points.append(intersection)
             #print(iPoint,intersection)
         reconstructed_points.append(subList)
-"""
 
+"""
 print("All 3D points created now searching for shortest path, it took",time.time()-start,'seconds')
 
 ### Dijkstra's algorithm for shortest path, graph
@@ -417,15 +476,22 @@ for i in range(0,len(allpossible3Dpoints)):
 ####_______________ PLOTTING ________________######
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(-160.17292901, -183.11203779, -189.37506566, c='red') #centerline1[0]
 plt.sca(ax)
+# Set the view to look straight up the Z-axis
+ax.view_init(elev=-90, azim=95)
 # plt.plot(xvals, yvals, zvals, color='b',linestyle='dotted',alpha=0.2)                    # principle ray
 ax.scatter(S[0], S[1], S[2], color='b')  # source
 
 
+
+plt.plot(virtualAngiogram_Jul2023.virtualVesselx,virtualAngiogram_Jul2023.virtualVessely,virtualAngiogram_Jul2023.virtualVesselz,c='navy')
+
 # plt.plot(xvals2, yvals2, zvals2, color='k',linestyle='dotted',alpha=0.2)
 ax.scatter(S2[0], S2[1], S2[2], color='k')
 
+
+ax.scatter(*project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[0]),c='g')
+ax.scatter(*project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[1]),c='g')
 
 for x in centerline1:
     ax.scatter(*x, color='b')
@@ -451,19 +517,52 @@ y_vals_detector = [[P1[1], SS_1[1], R1[1], Q1[1], P1[1]], [P2[1], SS_2[1], R2[1]
 z_vals_detector = [[P1[2], SS_1[2], R1[2], Q1[2], P1[2]], [P2[2], SS_2[2], R2[2], Q2[2], P2[2]]]
 plt.plot(x_vals_detector[0], y_vals_detector[0], z_vals_detector[0], c='k')
 plt.plot(x_vals_detector[1], y_vals_detector[1], z_vals_detector[1], c='k')
+plt.plot(x_epipolarline,y_epipolarline,z_epipolarline,c='r')
 
-n_eval_detector = 2
-lamdaT = np.linspace(-8000 * d_p, 8000 * d_p, n_eval_detector)
-xT = np.empty((len(lamdaT), len(lamdaT)))
-yT = np.empty((len(lamdaT), len(lamdaT)))
-zT = np.empty((len(lamdaT), len(lamdaT)))
-for i in range(len(lamdaT)):
-    for j in range(len(lamdaT)):
-        xT[i][j] = S2[0] + (lamdaT[i] / np.linalg.norm(r4)) * r4[0] + (lamdaT[j] / np.linalg.norm(r5)) * r5[0]
-        yT[i][j] = S2[1] + (lamdaT[i] / np.linalg.norm(r4)) * r4[1] + (lamdaT[j] / np.linalg.norm(r5)) * r5[1]
-        zT[i][j] = S2[2] + (lamdaT[i] / np.linalg.norm(r4)) * r4[2] + (lamdaT[j] / np.linalg.norm(r5)) * r5[2]
+curveValsX = []
+curveValsX2 = []
+curveValsY = []
+curveValsY2 = []
+curveValsZ = []
+curveValsZ2 = []
+dirVector = centerline1[1] - S
+# lamda = np.linspace(0,np.linalg.norm(dirVector),n_eval_curve)
+lamda = np.linalg.norm(dirVector)
+value = S + lamda * dirVector / np.linalg.norm(dirVector)
 
-ax.plot_wireframe(xT, yT, zT, color='green', alpha=0.95, linewidth=0.75)  # epipolar plane
+curveValsX.append(value[0])
+curveValsY.append(value[1])
+curveValsZ.append(value[2])
+
+dirVector2 = centerline2[i] - S2
+lamda2 = np.linalg.norm(dirVector2)
+value2 = S2 + lamda2 * dirVector2 / np.linalg.norm(dirVector2)
+curveValsX2.append(value2[0])
+curveValsY2.append(value2[1])
+curveValsZ2.append(value2[2])
+
+plt.plot([S[0],centerline1[0][0]], [ S[1],centerline1[0][1]],[ S[2],centerline1[0][2]], color='b',alpha=0.2)
+plt.plot([S2[0],project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[0])[0]],
+         [ S2[1],project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[0])[1]],
+         [ S2[2],project2Dto3D_JT(M2, d_d2, d_p, sign_change_location[0])[2]], color='b',alpha=0.2)
+
+
+
+
+
+##n_eval_detector = 2
+##lamdaT = np.linspace(-4000 * d_p, 4000 * d_p, n_eval_detector)
+##xT = np.empty((len(lamdaT), len(lamdaT)))
+##yT = np.empty((len(lamdaT), len(lamdaT)))
+##zT = np.empty((len(lamdaT), len(lamdaT)))
+##for i in range(len(lamdaT)):
+##    for j in range(len(lamdaT)):
+##        xT[i][j] = S2[0] + (lamdaT[i] / np.linalg.norm(r4)) * r4[0] + (lamdaT[j] / np.linalg.norm(r5)) * r5[0]
+##        yT[i][j] = S2[1] + (lamdaT[i] / np.linalg.norm(r4)) * r4[1] + (lamdaT[j] / np.linalg.norm(r5)) * r5[1]
+##        zT[i][j] = S2[2] + (lamdaT[i] / np.linalg.norm(r4)) * r4[2] + (lamdaT[j] / np.linalg.norm(r5)) * r5[2]
+##
+##ax.plot_wireframe(xT, yT, zT, color='green', alpha=0.95, linewidth=0.75)  # epipolar plane
+#ax.scatter(centerline1[0][0],centerline1[0][1],centerline1[0][2],c='r')
 #plt.plot([S2[0], epi_curve_intersect3D[0]], [S2[1], epi_curve_intersect3D[1]], [S2[2], epi_curve_intersect3D[2]], color='k', alpha=0.8)
 
 from virtualAngiogram_Jul2023 import topmid_3d, topmid_3d_2
@@ -478,16 +577,11 @@ ax.set_aspect('equal')  # , adjustable='box')
 print("3D plot done")
 
 
-
 fig2 = plt.figure("1st view")
 plt.xlim([-(px/2), (px/2)])
 plt.ylim([-(px/2), (px/2)])
-
-plt.plot(legVx_2D, legVy_2D, color='k', label='Reparameterized Legendre Curve',alpha=0.5)
 plt.plot(virtualAngiogram_Jul2023.x_coord_fit_proj1, virtualAngiogram_Jul2023.y_coord_fit_proj1, color='crimson', label='Reparameterized Legendre Curve',alpha=0.5)
 
-
-test11=project3Dto2D(P1,SS_1,Q1,centerline1[0])[0]
 
 # Set plot labels and legend 
 plt.xlabel('X')
@@ -496,19 +590,18 @@ plt.legend()
 
 
 fig3 = plt.figure("2d view")
-for i in range(len(backProjectionView2)):
-    plt.scatter(backProjectionView2[i][0],backProjectionView2[i][1],c='r',s=5)
-
-for i in epipolarpoint_local_2D:
-    plt.scatter(*i,c='r',alpha=0.5)
 plt.plot(legVx2_2D, legVy2_2D, color='k', label='Reparameterized Legendre Curve')
-ax = plt.gca()
 
 
-# Set plot labels and legend
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.legend()
+plt.xlim([-(px/2), (px/2)])
+plt.ylim([-(px/2), (px/2)])
+
+#for i in epipolarpoint_local_2D:
+#    plt.scatter(*i,c='r',alpha=0.5)
+plt.scatter(*sign_change_location[0],c='g')
+plt.scatter(*sign_change_location[1],c='g')
+plt.plot([epipolarpoint_local_2D[0][0],epipolarpoint_local_2D[-1][0]],[epipolarpoint_local_2D[0][1],epipolarpoint_local_2D[-1][1]],c='r')
+
 
 plt.show()
 
