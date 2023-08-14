@@ -126,9 +126,9 @@ detector_mat_inv = np.linalg.inv(detector_mat)
 Detector1 = detector_mat_inv[:3,-1]
 
 topmid = mapCenterline(47,[0, 512./2],h_flip=True,vert_flip=True)
-R2 = (topmid - Detector1) / np.linalg.norm(topmid - Detector1)
+r2 = (topmid - Detector1) / np.linalg.norm(topmid - Detector1)
 midright = mapCenterline(47,[512./2, 0],h_flip=True,vert_flip=True)
-R3 = (midright - Detector1) / np.linalg.norm(midright - Detector1)
+r3 = (midright - Detector1) / np.linalg.norm(midright - Detector1)
 
 
 #Set-up detector 2: frame 234
@@ -144,9 +144,9 @@ detector_mat_inv2 = np.linalg.inv(detector_mat2)
 Detector2 = detector_mat_inv2[:3, -1]
 
 topmid2 = mapCenterline(233,[0, 512./2],h_flip=True,vert_flip=True)
-R2_2 = (topmid - Detector2) / np.linalg.norm(topmid - Detector2)
+r2_2 = (topmid2 - Detector2) / np.linalg.norm(topmid2 - Detector2)
 midright2 = mapCenterline(233,[512./2, 0],h_flip=True,vert_flip=True)
-R3_2 = (midright - Detector2) / np.linalg.norm(midright - Detector2)
+r3_2 = (midright2 - Detector2) / np.linalg.norm(midright2 - Detector2)
 
 P1 =   mapCenterline(47,np.array([256,-256]))
 Q1 =   mapCenterline(47,np.array([256,256]))
@@ -190,7 +190,6 @@ view2 = np.array([      #frame 234
   [           -26.437,       8.8123,           94]
 ])
 
-
 proj1_2DX =  view1[:,0]*-1
 if v_flip:
     proj1_2DY =  view1[:,1]*-1
@@ -212,29 +211,15 @@ t = list(np.arange(0, ss[-1], step_t)) # t is parameter for projection 1
 s = list(np.arange(0, ss2[-1], step_s)) # s is parameter for projection 2
 
 best_order_fit = 10 # order of best fit
-
-# Make empty lists for legendre polynomial fits
-fit_list_x_proj1 = []
-x_coord_fit_proj1 = []
-fit_list_y_proj1 = []
-y_coord_fit_proj1 = []
-fit_list_x_proj2 = []
-x_coord_fit_proj2 = []
-fit_list_y_proj2 = []
-y_coord_fit_proj2 = []
-
 # --- Fit legendre polynomial for X of projections with best order ---
 legendre_coefs_x_proj1 = np.polynomial.legendre.legfit(ss, proj1_2DX, best_order_fit) #Least squares fit of Legendre series to data, coefficients
 x_coord_fit_proj1 = np.polynomial.legendre.legval(t, legendre_coefs_x_proj1) #Evaluate a Legendre series at points x
-
 legendre_coefs_y_proj1 = np.polynomial.legendre.legfit(ss, proj1_2DY, best_order_fit)
 y_coord_fit_proj1 = np.polynomial.legendre.legval(t, legendre_coefs_y_proj1)
 
 #second fit
 legendre_coefs_x_proj2 = np.polynomial.legendre.legfit(ss2, proj2_2DX, best_order_fit) #Least squares fit of Legendre series to data, coefficients
 x_coord_fit_proj2 = np.polynomial.legendre.legval(s, legendre_coefs_x_proj2) #Evaluate a Legendre series at points x
-
-
 legendre_coefs_y_proj2 = np.polynomial.legendre.legfit(ss2, proj2_2DY, best_order_fit)
 y_coord_fit_proj2 = np.polynomial.legendre.legval(s, legendre_coefs_y_proj2)
 
@@ -254,10 +239,11 @@ for p in range(len(legVx)):
     world_p2 = mapCenterline(233, temp_point_2, h_flip=True, vert_flip=True)
     world_points_2.append(world_p2)
 
-legVx = [value * -d_p for value in legVx] 
+
+legVx = [value * -d_p for value in legVx]
 legVy = [value * d_p for value in legVy]
 legVz = d_d1 * np.ones_like(legVx)
-centerline1 = []
+
 legVx_2D = [value / -d_p for value in legVx]
 legVy_2D = [value / d_p for value in legVy]
 
@@ -265,11 +251,119 @@ legVx2 = [value * -d_p for value in legVx2]
 legVy2 = [value * d_p for value in legVy2]
 legVz2 = d_d2 * np.ones_like(legVx2)
 
-centerline2 = []
 legVx2_2D = [value / -d_p for value in legVx2]
-legVy2_2D = [value / d_p for value in legVy2] 
+legVy2_2D = [value / d_p for value in legVy2]
+
+#transfer variable names
+centerline1 = world_points_1
+
+reconstructed_points = []
+total_reconstructed_points = []
+epipolar_total = []
+epipolar_total2 = []
+
+r4 = Source2 - Source1
+NoIntersectionsPerPoint = np.zeros(len(world_points_1))
+sign_change_location_total = []
 
 
+test_list = [3,49,79]
+test_colors = ['lime','cyan','red']
+matches = []
+
+for iPoint in range(len(centerline1)): #len(centerline1)
+    r5 = centerline1[iPoint] - Source2
+    AA = np.array([(r2_2[0] / np.linalg.norm(r2_2), r3_2[0] / np.linalg.norm(r3_2), -r4[0] / np.linalg.norm(r4),
+                    -r5[0] / np.linalg.norm(r5)),
+                   (r2_2[1] / np.linalg.norm(r2_2), r3_2[1] / np.linalg.norm(r3_2), -r4[1] / np.linalg.norm(r4),
+                    -r5[1] / np.linalg.norm(r5)),
+                   (r2_2[2] / np.linalg.norm(r2_2), r3_2[2] / np.linalg.norm(r3_2), -r4[2] / np.linalg.norm(r4),
+                    -r5[2] / np.linalg.norm(r5))])
+    BB = np.array([Source2[0] - Detector2[0], Source2[1] - Detector2[1], Source2[2] - Detector2[2]])
+    n1 = np.cross(r2_2, r3_2)  # normal on detectorplane 1
+    n2 = np.cross(r4, r5)  # normal on epipolar plane
+    r_epi = np.cross(n1, n2)  # cross product of the  two normals of the planes. This equals to the directional vector of the epipolar line.
+    bounds = ([- px / 2 * d_p, - px / 2 * d_p, -np.inf, -np.inf], [px / 2 * d_p, px / 2 * d_p, np.inf, np.inf])
+    res = lsq_linear(AA, BB, bounds=bounds, method='bvls', lsmr_tol='auto', verbose=0)
+    lam2 = res.x[0]  # dit zijn de lamdas voor een punt op de snijlijn van de 2 vlakken
+    lam3 = res.x[1]
+
+    x_epipolar_point = Detector2[0] + (lam2 / np.linalg.norm(r2_2)) * r2_2[0] + (lam3 / np.linalg.norm(r3_2)) * r3_2[0]
+    y_epipolar_point = Detector2[1] + (lam2 / np.linalg.norm(r2_2)) * r2_2[1] + (lam3 / np.linalg.norm(r3_2)) * r3_2[1]
+    z_epipolar_point = Detector2[2] + (lam2 / np.linalg.norm(r2_2)) * r2_2[2] + (lam3 / np.linalg.norm(r3_2)) * r3_2[2]
+
+    # calculation of lamda range which limits epipolar line to detector
+    L1 = calculate_lambda_JT([x_epipolar_point,y_epipolar_point,z_epipolar_point],r_epi,P2,SS_2)
+    L2 = calculate_lambda_JT([x_epipolar_point,y_epipolar_point,z_epipolar_point],r_epi,P2,Q2)
+    L3 = calculate_lambda_JT([x_epipolar_point,y_epipolar_point,z_epipolar_point],r_epi,Q2,R2)
+    L4 = calculate_lambda_JT([x_epipolar_point,y_epipolar_point,z_epipolar_point],r_epi,R2,SS_2)
+    lamda_list = [L1,L2,L3,L4]
+    lamda_list = sorted(lamda_list)
+    min_lambda_epi = lamda_list[1]
+    max_lamda_epi = lamda_list[2]
+    a = np.linspace( min_lambda_epi, max_lamda_epi , 100)
+    x_epipolarline = np.zeros(len(a))
+    y_epipolarline = np.zeros(len(a))
+    z_epipolarline = np.zeros(len(a))
+
+    epipolarpoint_local_2D = []
+    for k in range(len(a)):
+        x_value = x_epipolar_point + ( a[k] * r_epi[0] / np.linalg.norm(r_epi) )
+        y_value = y_epipolar_point + ( a[k] * r_epi[1] / np.linalg.norm(r_epi) )
+        z_value = z_epipolar_point + ( a[k] * r_epi[2] / np.linalg.norm(r_epi) )
+
+        x_epipolarline[k] = x_value
+        y_epipolarline[k] = y_value
+        z_epipolarline[k] = z_value
+
+        epipolarpoint_local_2D.append(project3Dto2D(P2, SS_2, Q2,[x_value, y_value, z_value],px,d_p)[0])
+        epipolar_total.append(project3Dto2D(P2, SS_2, Q2, [x_value, y_value, z_value], px, d_p)[0])
+
+    dirV_epi_2D = epipolarpoint_local_2D[0]-epipolarpoint_local_2D[1]
+    dirV_g = np.dot(dirV_epi_2D, np.array(((0, -1), (1, 0))))
+
+    prev_delta_y = 0
+    sign_change_location = []
+
+    for point in range(len(legVx2_2D)):                                                                  #note: this loop outputs coordianates of intersection under variable "sign_change_location"
+        intersection_d_epi = intersection_two_lines_2D(np.array([legVx2_2D[point], legVy2_2D[point]]), dirV_g, epipolarpoint_local_2D[0], dirV_epi_2D)
+        delta_y = legVy2_2D[point]-intersection_d_epi[1]
+        sign_delta_y = np.sign(delta_y)
+        if point != 0 and sign_delta_y != prev_delta_y:
+            sign_change_location.append(np.array( ([legVx2_2D[point], legVy2_2D[point]]) ) )
+            sign_change_location_total.append(np.array(([legVx2_2D[point], legVy2_2D[point]])))
+        prev_delta_y = sign_delta_y
+
+    if len(sign_change_location) == 1:
+        subList = []
+        epi_curve_intersect3D = mapCenterline(233, sign_change_location[0])
+        intersection = xRayIntersection(Source1, centerline1[iPoint], Source2,    #intersection = xRayIntersection(S, [curveValsX[iPoint], curveValsY[iPoint], curveValsZ[iPoint]], S2,
+                                        epi_curve_intersect3D,
+                                        domain=[(-600, 600), (-600, 600),
+                                                (-800, 600)])  # domain=[(-30, 30), (-40, 30), (-80, -20)]
+        intersection = np.around(intersection.astype(np.double), 4)
+        subList.append(intersection)
+        #print(iPoint, intersection)
+        NoIntersectionsPerPoint[iPoint] = 1
+        reconstructed_points.append(subList)
+        total_reconstructed_points.append(intersection)
+        #matches.append(epi_curve_intersect3D)
+
+    elif len(sign_change_location) > 1:
+        #print("len sign change=",len(sign_change_location))
+        NoIntersectionsPerPoint[iPoint] = len(sign_change_location)
+        subList = []
+        for i in range(len(sign_change_location)):
+            epi_curve_intersect3D = mapCenterline(233,sign_change_location[i])
+            intersection = xRayIntersection(Source1, centerline1[iPoint], Source2,
+                                            epi_curve_intersect3D,
+                                            domain=[(-300, 300), (-400, 300),
+                                                    (-800, 200)])  # domain=[(-30, 30), (-40, 30), (-80, -20)]
+            intersection = np.around(intersection.astype(np.double), 4)
+            subList.append(intersection)
+            total_reconstructed_points.append(intersection)
+            #print(iPoint,intersection)
+        reconstructed_points.append(subList)
 
 
 ####_______________ PLOTTING ________________######
@@ -283,10 +377,10 @@ ax.scatter(*Detector2,c='k')
 ax.scatter(*Source2,c='k')
 
 for p in world_points_1:
-    ax.scatter(*p,c='lime')
+    ax.scatter(*p,c='b',alpha=0.2)
 
 for p in world_points_2:
-    ax.scatter(*p,c='lime')
+    ax.scatter(*p,c='grey',alpha=0.2)
 
 # plot van detector dmv hoekpunten
 x_vals_detector = [[P1[0], SS_1[0], R1[0], Q1[0], P1[0]],[P2[0], SS_2[0], R2[0], Q2[0], P2[0]]]
@@ -295,24 +389,64 @@ z_vals_detector = [[P1[2], SS_1[2], R1[2], Q1[2], P1[2]],[P2[2], SS_2[2], R2[2],
 plt.plot(x_vals_detector[0], y_vals_detector[0], z_vals_detector[0], c='navy')
 plt.plot(x_vals_detector[1], y_vals_detector[1], z_vals_detector[1], c='k')
 
+for sublist in reconstructed_points:
+    ax.scatter(*sublist[0],c='fuchsia',alpha=0.4)
 
+#ax.scatter(*reconstructed_points[0][0],c=test_colors[0],alpha=0.95)
+#ax.scatter(*reconstructed_points[1][0],c=test_colors[1],alpha=0.95)
+#ax.scatter(*reconstructed_points[2][0],c=test_colors[2],alpha=0.95)
+#
+#ax.scatter(*matches[0],c=test_colors[0],alpha=0.95)
+#ax.scatter(*matches[1],c=test_colors[1],alpha=0.95)
+#ax.scatter(*matches[2],c=test_colors[2],alpha=0.95)
+#
+#ax.scatter(*world_points_1[test_list[0]],c=test_colors[0],alpha=0.95)
+#ax.scatter(*world_points_1[test_list[1]],c=test_colors[1],alpha=0.95)
+#ax.scatter(*world_points_1[test_list[2]],c=test_colors[2],alpha=0.95)
+
+curveValsX = []
+curveValsY = []
+curveValsZ = []
+curveValsX2 = []
+curveValsY2 = []
+curveValsZ2 = []
+
+#for i in range(3):
+#    k = test_list[i]
+#    dirVector = centerline1[k] - Source1
+#    # lamda = np.linspace(0,np.linalg.norm(dirVector),n_eval_curve)
+#    lamda = np.linalg.norm(dirVector)
+#    value = Source1 + lamda * dirVector / np.linalg.norm(dirVector)
+#
+#    curveValsX.append(value[0])
+#    curveValsY.append(value[1])
+#    curveValsZ.append(value[2])
+#
+#    dirVector2 = matches[i] - Source2
+#    lamda2 = np.linalg.norm(dirVector2)
+#    value2 = Source2 + lamda2 * dirVector2 / np.linalg.norm(dirVector2)
+#    curveValsX2.append(value2[0])
+#    curveValsY2.append(value2[1])
+#    curveValsZ2.append(value2[2])
+
+#plot test rays
+#for kk in range(3):
+#    plt.plot([Source1[0], curveValsX[0]], [Source1[1], curveValsY[kk]], [Source1[2], curveValsZ[kk]], color=test_colors[kk], alpha=0.4)
+#    plt.plot([Source2[0], curveValsX2[kk]], [Source2[1], curveValsY2[kk]], [Source2[2], curveValsZ2[kk]], color=test_colors[kk], alpha=0.4)
+
+
+plt.grid(False)
+plt.axis('off')
 
 ax.scatter(topmid[0], topmid[1], topmid[2], c='yellow', alpha=0.4)
 ax.scatter(topmid2[0], topmid2[1], topmid2[2], c='yellow', alpha=0.4)
-
 
 xLabel = ax.set_xlabel('X', linespacing=1)
 yLabel = ax.set_ylabel('Y', linespacing=1)
 zLabel = ax.set_zlabel('Z', linespacing=1)
 ax.set_aspect('equal')  # , adjustable='box')
-plt.show()
-
 
 fig2 = plt.figure("1st view")
-#fig2.canvas.mpl_connect('button_press_event', onclick)
-# Connect the button press and release events
-#fig2.canvas.mpl_connect('button_press_event', on_button_press)
-#fig2.canvas.mpl_connect('button_release_event', on_button_release_1)
 ax2 = fig2.add_axes([0, 0, 1, 1])
 plt.xlim([-(px/2), (px/2)])
 plt.ylim([-(px/2), (px/2)])
@@ -324,15 +458,9 @@ extent = [-px/2, px/2, -px/2, px/2]
 ax2.imshow(image1, extent=extent, aspect='equal', cmap='bone', alpha=0.8)
 
 
-#x_coords_epi_d1 = [point[0] for point in epipolarpoint_local_2D_func]
-#y_coords_epi_d1 = [point[1] for point in epipolarpoint_local_2D_func]
-#plt.plot(x_coords_epi_d1, y_coords_epi_d1,c='r')
-
-
 plt.plot(legVx_2D, legVy_2D, color='k', label='Reparameterized Legendre Curve',alpha=0.5) #todo legVx_2D is in pixels, moet dat
 plt.plot(x_coord_fit_proj1, y_coord_fit_proj1, color='crimson', label='Reparameterized Legendre Curve',alpha=0.5)
 ax2.legend()
-
 plt.sca(ax2)
 # Set plot labels and legend
 plt.xlabel('X')
@@ -351,13 +479,15 @@ extent = [-px / 2, px / 2, -px / 2, px / 2]
 ax3.imshow(Image2, extent=extent, aspect='equal', cmap='bone', alpha=0.8)
 
 plt.plot(legVx2_2D, legVy2_2D, color='k', label='Reparameterized Legendre Curve')
-plt.plot(x_coord_fit_proj2, y_coord_fit_proj2, color='crimson', label='Reparameterized Legendre Curve_x_coordfirt',alpha=0.5)
+plt.plot(x_coord_fit_proj2, y_coord_fit_proj2, color='crimson',alpha=0.5)
+
+plt.plot([sublist[0] for sublist in epipolar_total],[sublist[1] for sublist in epipolar_total],c='r',alpha=0.4)
+
+
 
 # Set plot labels and legend
 plt.xlabel('X')
 plt.ylabel('Y')
 plt.legend()
-
-
 plt.show()
 print("script ended")
